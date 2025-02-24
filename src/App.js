@@ -9,7 +9,7 @@ import {
 import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-const ALB_DNS = "http://url-shortenining-alb-242809118.us-east-1.elb.amazonaws.com";
+const ALB_DNS = "<ALB_DNS>";
 
 // Home Page - URL Shortener
 const Home = () => {
