@@ -9,7 +9,7 @@ import {
 import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-const ALB_DNS = "<ALB_DNS>";
+const ALB_DNS = "http://url-shortenining-alb-565984806.us-east-1.elb.amazonaws.com";
 
 // Home Page - URL Shortener
 const Home = () => {
@@ -45,21 +45,11 @@ const Home = () => {
           />
         </div>
         <button className="btn btn-primary w-100" onClick={handleShorten} disabled={loading}>
-          {loading ? (
-            <>
-              <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>{" "}
-              Shortening...
-            </>
-          ) : (
-            "Shorten"
-          )}
+          {loading ? "Shortening..." : "Shorten"}
         </button>
         {shortUrl && (
           <p className="mt-3 text-center">
-            Shortened URL:{" "}
-            <a href={`${ALB_DNS}/${shortUrl}`} target="_blank" rel="noopener noreferrer">
-              {shortUrl}
-            </a>
+            Shortened URL: <a href={`${ALB_DNS}/${shortUrl}`} target="_blank" rel="noopener noreferrer">{shortUrl}</a>
           </p>
         )}
         <button className="btn btn-secondary w-100 mt-2" onClick={() => navigate("/fetch-url")}>
@@ -70,22 +60,55 @@ const Home = () => {
   );
 };
 
-// Fetch Long URL Page
+// Fetch Long URL Page with Delete Functionality
 const FetchLongUrl = () => {
   const [shortKey, setShortKey] = useState("");
   const [longUrl, setLongUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    // Extract short key from URL if it's a full URL
+    if (shortKey.startsWith(ALB_DNS)) {
+      const extractedKey = shortKey.replace(`${ALB_DNS}/`, "");
+      setShortKey(extractedKey);
+    }
+  }, [shortKey]);
 
   const handleFetch = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`${ALB_DNS}/fetch_url/${shortKey}`);
-      setLongUrl(response.data.long_url);
-    } catch (error) {
-      console.error("Invalid short URL", error);
-      setLongUrl("Not found");
-    }
-    setLoading(false);
+      setLoading(true);
+      setMessage("");
+
+      // Extract short key if a full URL is provided
+      const extractedKey = shortKey.replace(/^https?:\/\/[^/]+\//, ""); // Removes base URL
+      setShortKey(extractedKey);
+
+      try {
+        const response = await axios.get(`${ALB_DNS}/fetch_url/${extractedKey}`);
+        setLongUrl(response.data.long_url);
+      } catch (error) {
+        console.error("Invalid short URL", error);
+        setLongUrl("Not found");
+      }
+      setLoading(false);
+  };
+
+  const handleDelete = async () => {
+      if (!shortKey) return;
+
+      // Extract short key if a full URL is provided
+      const extractedKey = shortKey.replace(/^https?:\/\/[^/]+\//, ""); 
+      setShortKey(extractedKey);
+
+      try {
+        await axios.delete(`${ALB_DNS}/delete_url/${extractedKey}`);
+        setMessage("Short URL deleted successfully.");
+        setLongUrl("");
+        setShortKey("");
+      } catch (error) {
+        setMessage("Failed to delete URL.");
+        console.error("Error deleting URL", error);
+      }
   };
 
   return (
@@ -93,43 +116,24 @@ const FetchLongUrl = () => {
       <div className="card p-4 shadow-sm">
         <h2 className="text-center mb-3">Fetch Long URL</h2>
         <div className="mb-3">
-        <input
-          type="text"
-          className="form-control"
-          placeholder="Enter short URL or short key"
-          value={shortKey}
-          onChange={(e) => {
-            const inputValue = e.target.value.trim();
-            try {
-              // Extract short key from full URL
-              const url = new URL(inputValue);
-              const extractedKey = url.pathname.replace("/", ""); // Remove leading "/"
-              setShortKey(extractedKey);
-            } catch (error) {
-              // If it's not a full URL, assume it's already a short key
-              setShortKey(inputValue);
-            }
-          }}
-        />
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Enter short URL or short key"
+            value={shortKey}
+            onChange={(e) => setShortKey(e.target.value.trim())}
+          />
         </div>
         <button className="btn btn-success w-100" onClick={handleFetch} disabled={loading}>
-          {loading ? (
-            <>
-              <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>{" "}
-              Fetching...
-            </>
-          ) : (
-            "Fetch"
-          )}
+          {loading ? "Fetching..." : "Fetch"}
         </button>
         {longUrl && (
-          <p className="mt-3 text-center">
-            Original URL:{" "}
-            <a href={longUrl} target="_blank" rel="noopener noreferrer">
-              {longUrl}
-            </a>
-          </p>
+          <div className="mt-3 text-center">
+            <p>Original URL: <a href={longUrl} target="_blank" rel="noopener noreferrer">{longUrl}</a></p>
+          </div>
         )}
+        <button className="btn btn-danger w-100 mt-2" onClick={handleDelete}>Delete Short URL</button>
+        {message && <p className="text-center mt-3 text-danger">{message}</p>}
       </div>
     </div>
   );
